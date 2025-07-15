@@ -301,14 +301,33 @@ class AndroidProjectRAGProcessor:
         # Save in a separate directory at the same level as the main vector_db
         file_structure_db_path = "./file_structure_tree_db"
         logger.info(f"Creating file structure tree vector store at {file_structure_db_path}...")
-        vector_store = Chroma.from_documents(
-            documents=[file_structure_doc],
-            embedding=self.embeddings,
-            persist_directory=file_structure_db_path
-        )
-        vector_store.persist()
-        logger.info(f"File structure tree vector store created and persisted to {file_structure_db_path}")
-        return vector_store
+        
+        try:
+            # Create directory if it doesn't exist
+            os.makedirs(file_structure_db_path, exist_ok=True)
+            
+            logger.info(f"File structure tree content length: {len(file_structure_doc.page_content)}")
+            logger.info(f"File structure tree metadata: {file_structure_doc.metadata}")
+            
+            vector_store = Chroma.from_documents(
+                documents=[file_structure_doc],
+                embedding=self.embeddings,
+                persist_directory=file_structure_db_path
+            )
+            vector_store.persist()
+            
+            # Verify the store has documents
+            output_docs = vector_store.get()
+            logger.info(f"File structure tree vector store created and persisted to {file_structure_db_path}")
+            logger.info(f"File structure tree store has {len(output_docs['documents'])} documents")
+            
+            return vector_store
+            
+        except Exception as e:
+            logger.error(f"Error creating file structure tree vector store: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def run_full_processing(self):
         """
@@ -332,6 +351,10 @@ class AndroidProjectRAGProcessor:
         
         # Also create a separate vector store for just the file structure tree
         self.create_file_structure_vector_store(file_structure_doc)
+        
+        # Reindex components to create component-aware vectorstore
+        from vector_db_manager import reindex_components_to_vectorstore
+        reindex_components_to_vectorstore()
         
         # Get summary
         summary = self.get_project_summary()
