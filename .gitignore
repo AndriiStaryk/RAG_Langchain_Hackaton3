@@ -11,6 +11,7 @@ __pycache__/
 # Ignore virtual environments
 vector_db/
 env/
+file_structure_tree_db/
 
 # macOS system files
 .DS_Store

@@ -263,6 +263,53 @@ class AndroidProjectRAGProcessor:
             logger.error(f"Error getting project summary: {e}")
             return {"error": str(e)}
     
+    def generate_file_structure_tree(self) -> str:
+        """
+        Generate a string representation of the file structure tree.
+        """
+        tree_lines = []
+        for root, dirs, files in os.walk(self.project_path):
+            level = os.path.relpath(root, self.project_path).count(os.sep)
+            indent = "    " * level
+            tree_lines.append(f"{indent}{os.path.basename(root)}/")
+            subindent = "    " * (level + 1)
+            for f in files:
+                tree_lines.append(f"{subindent}{f}")
+        return "\n".join(tree_lines)
+
+    def create_file_structure_document(self) -> Document:
+        """
+        Create a Document object for the file structure tree.
+        """
+        tree_str = self.generate_file_structure_tree()
+        metadata = {
+            "file_path": "FILE_STRUCTURE_TREE",
+            "file_name": "FILE_STRUCTURE_TREE",
+            "file_extension": ".txt",
+            "file_size": len(tree_str),
+            "project_type": "Android",
+            "language": "Text",
+            "directory": "",
+            "description": "This document contains the file structure tree of the project."
+        }
+        return Document(page_content=tree_str, metadata=metadata)
+
+    def create_file_structure_vector_store(self, file_structure_doc: Document) -> Chroma:
+        """
+        Create and persist a vector store for the file structure tree document only.
+        """
+        # Save in a separate directory at the same level as the main vector_db
+        file_structure_db_path = "./file_structure_tree_db"
+        logger.info(f"Creating file structure tree vector store at {file_structure_db_path}...")
+        vector_store = Chroma.from_documents(
+            documents=[file_structure_doc],
+            embedding=self.embeddings,
+            persist_directory=file_structure_db_path
+        )
+        vector_store.persist()
+        logger.info(f"File structure tree vector store created and persisted to {file_structure_db_path}")
+        return vector_store
+    
     def run_full_processing(self):
         """
         Run the complete RAG processing pipeline.
@@ -276,8 +323,15 @@ class AndroidProjectRAGProcessor:
             logger.error("No documents were processed!")
             return
         
-        # Create vector store
+        # Add file structure tree as a special document to the main RAG
+        file_structure_doc = self.create_file_structure_document()
+        documents.append(file_structure_doc)
+        
+        # Create vector store for all documents (including file structure tree)
         self.vector_store = self.create_vector_store(documents)
+        
+        # Also create a separate vector store for just the file structure tree
+        self.create_file_structure_vector_store(file_structure_doc)
         
         # Get summary
         summary = self.get_project_summary()
