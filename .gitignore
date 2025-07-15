@@ -1,0 +1,33 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore environment files
+.env
+
+
+
+# Ignore virtual environments
+vector_db/
+env/
+
+# macOS system files
+.DS_Store
+
+# IDE/editor configs
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Byte-compiled / packaged files
+*.egg
+*.egg-info/
+dist/
+build/
+
+
+# PyInstaller
+*.spec
