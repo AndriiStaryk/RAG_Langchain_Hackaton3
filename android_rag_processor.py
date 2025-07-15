@@ -356,6 +356,17 @@ class AndroidProjectRAGProcessor:
         from vector_db_manager import reindex_components_to_vectorstore
         reindex_components_to_vectorstore()
         
+        # Translate components to Swift
+        from kotlin_to_swift_translator import KotlinToSwiftTranslator
+        translator = KotlinToSwiftTranslator()
+        translations = translator.translate_all_components()
+        
+        if translations:
+            logger.info(f"✅ Successfully translated {len(translations)} components to Swift!")
+            logger.info(f"📁 Swift files saved to: ./swift_output/")
+        else:
+            logger.warning("⚠️ No components were translated to Swift")
+        
         # Get summary
         summary = self.get_project_summary()
         logger.info(f"Processing complete! Summary: {summary}")

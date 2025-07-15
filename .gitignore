@@ -3,16 +3,19 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Ignore environment files
+# Ignore environment files and generatede files
 .env
 
-
+*.bin
+*.swift
+*.sqlite3
 
 # Ignore virtual environments
 vector_db/
 env/
 file_structure_tree_db/
-
+component_vector_db/
+swift_output/
 # macOS system files
 .DS_Store
 
