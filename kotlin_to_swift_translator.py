@@ -294,52 +294,78 @@ Swift code:
         
         return swift_code
     
+    def _clean_swift_code(self, code: str) -> str:
+        """Remove all markdown code block markers and language tags from LLM output."""
+        lines = code.splitlines()
+        cleaned = []
+        for line in lines:
+            if line.strip().startswith("```"):
+                continue
+            if line.strip().lower() in ["swift", "kotlin"]:
+                continue
+            cleaned.append(line)
+        return "\n".join(cleaned).strip()
+
     def translate_all_components(self, output_dir: str = "./swift_output") -> Dict[str, str]:
-        """Translate all components and save to files."""
+        """Translate all components and save to files. Group by component name and concatenate content."""
         components = self.get_components_by_type()
-        
         if not components:
             logger.error("No components found to translate")
             return {}
-        
-        # Create output directory
+
         os.makedirs(output_dir, exist_ok=True)
-        
         translations = {}
-        
+        used_names = set()
+
+        from collections import defaultdict
+        grouped = defaultdict(list)
         for component in components:
+            name = component.metadata.get("name") or "Unknown"
+            grouped[name].append(component.page_content)
+
+        for idx, (component_name, chunks) in enumerate(grouped.items()):
             try:
-                swift_code = self.translate_component(component)
-                component_name = component.metadata.get("name", "Unknown")
-                component_type = component.metadata.get("component_type", "Unknown")
-                
-                # Create filename
-                filename = f"{component_name}.swift"
+                full_content = "\n".join(chunks)
+                # Use the first component's metadata for type, etc.
+                first_component = next(c for c in components if (c.metadata.get("name") or "Unknown") == component_name)
+                component_type = first_component.metadata.get("component_type", "Unknown")
+
+                swift_code = self.translate_component(
+                    Document(page_content=full_content, metadata=first_component.metadata)
+                )
+                swift_code = self._clean_swift_code(swift_code)
+
+                # Ensure unique filenames
+                base_name = component_name or f"Component_{idx}"
+                file_name = base_name
+                if file_name in used_names:
+                    file_name = f"{base_name}_{idx}"
+                used_names.add(file_name)
+
+                filename = f"{file_name}.swift"
                 filepath = os.path.join(output_dir, filename)
-                
-                # Add header comment
+
                 header = f"""//
-//  {component_name}.swift
+//  {file_name}.swift
 //  Generated from Kotlin {component_type}
 //
-//  Original component: {component.metadata.get('filename', 'Unknown')}
+//  Original component: {first_component.metadata.get('filename', 'Unknown')}
 //  Component type: {component_type}
-//  Language: {component.metadata.get('language', 'Unknown')}
+//  Language: {first_component.metadata.get('language', 'Unknown')}
 //
 
 """
                 swift_code = header + swift_code
-                
-                # Save to file
+
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.write(swift_code)
-                
-                translations[component_name] = swift_code
-                logger.info(f"Translated {component_name} -> {filepath}")
-                
+
+                translations[file_name] = swift_code
+                logger.info(f"Translated {file_name} -> {filepath}")
+
             except Exception as e:
-                logger.error(f"Error translating component {component.metadata.get('name', 'Unknown')}: {e}")
-        
+                logger.error(f"Error translating component {component_name}: {e}")
+
         logger.info(f"Translated {len(translations)} components to {output_dir}")
         return translations
     
