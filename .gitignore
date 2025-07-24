@@ -13,6 +13,7 @@ __pycache__/
 # Ignore virtual environments
 vector_db/
 env/
+venv/
 file_structure_tree_db/
 component_vector_db/
 swift_output/

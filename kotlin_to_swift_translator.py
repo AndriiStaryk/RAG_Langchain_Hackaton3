@@ -10,7 +10,7 @@ import re
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from dotenv import load_dotenv
-from langchain_community.vectorstores import Chroma
+from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
 from langchain_openai import ChatOpenAI
@@ -295,16 +295,55 @@ Swift code:
         return swift_code
     
     def _clean_swift_code(self, code: str) -> str:
-        """Remove all markdown code block markers and language tags from LLM output."""
-        lines = code.splitlines()
-        cleaned = []
-        for line in lines:
-            if line.strip().startswith("```"):
-                continue
-            if line.strip().lower() in ["swift", "kotlin"]:
-                continue
-            cleaned.append(line)
-        return "\n".join(cleaned).strip()
+        """Extract only Swift code from LLM output, removing all markdown formatting."""
+        import re
+        
+        # First, try to extract code blocks marked as swift
+        swift_blocks = re.findall(r"```swift(.*?)```", code, re.DOTALL)
+        if swift_blocks:
+            # Join all swift code blocks
+            cleaned = "\n".join(block.strip() for block in swift_blocks)
+        else:
+            # If no swift code blocks, remove markdown formatting
+            lines = code.splitlines()
+            cleaned_lines = []
+            in_code_block = False
+            
+            for line in lines:
+                # Skip markdown code fences
+                if line.strip().startswith("```"):
+                    in_code_block = not in_code_block
+                    continue
+                
+                # Skip language tags (swift, kotlin, etc.)
+                if line.strip().lower() in ["swift", "kotlin", "```"]:
+                    continue
+                
+                # Skip markdown headers
+                if line.strip().startswith("#"):
+                    continue
+                
+                # Skip empty lines at the beginning and end
+                if not cleaned_lines and not line.strip():
+                    continue
+                
+                cleaned_lines.append(line)
+            
+            # Remove trailing empty lines
+            while cleaned_lines and not cleaned_lines[-1].strip():
+                cleaned_lines.pop()
+            
+            cleaned = "\n".join(cleaned_lines)
+        
+        # Additional cleanup: remove any remaining markdown artifacts
+        cleaned = re.sub(r'^```.*$', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'^#+\s*.*$', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'^\*\*.*\*\*$', '', cleaned, flags=re.MULTILINE)
+        
+        # Remove extra blank lines
+        cleaned = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned)
+        
+        return cleaned.strip()
 
     def translate_all_components(self, output_dir: str = "./swift_output") -> Dict[str, str]:
         """Translate all components and save to files. Group by component name and concatenate content."""

@@ -352,20 +352,8 @@ class AndroidProjectRAGProcessor:
         # Also create a separate vector store for just the file structure tree
         self.create_file_structure_vector_store(file_structure_doc)
         
-        # Reindex components to create component-aware vectorstore
-        from vector_db_manager import reindex_components_to_vectorstore
-        reindex_components_to_vectorstore()
-        
-        # Translate components to Swift
-        from kotlin_to_swift_translator import KotlinToSwiftTranslator
-        translator = KotlinToSwiftTranslator()
-        translations = translator.translate_all_components()
-        
-        if translations:
-            logger.info(f"✅ Successfully translated {len(translations)} components to Swift!")
-            logger.info(f"📁 Swift files saved to: ./swift_output/")
-        else:
-            logger.warning("⚠️ No components were translated to Swift")
+        # Note: Component extraction and translation are now handled separately
+        # by component_extractor.py and kotlin_to_swift_translator.py
         
         # Get summary
         summary = self.get_project_summary()
